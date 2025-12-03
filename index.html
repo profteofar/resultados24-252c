@@ -1,0 +1,477 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Monitorização Académica | Dashboard</title>
+    <!-- Tailwind CSS for styling -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        .transition-width { transition: width 0.5s ease-in-out; }
+    </style>
+</head>
+<body class="bg-gray-50 text-gray-900 pb-12">
+
+    <!-- Header -->
+    <header class="bg-white border-b border-gray-200 sticky top-0 z-50">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-8 h-8 bg-blue-600 rounded-lg flex items-center justify-center text-white font-bold">
+                    2C
+                </div>
+                <h1 class="text-xl font-bold text-gray-800">Monitorização <span class="hidden sm:inline">Académica</span> <span class="text-gray-400 font-normal">| 2024/2025</span></h1>
+            </div>
+            
+            <div class="flex items-center gap-4">
+                <div id="grade-selector" class="flex bg-gray-100 p-1 rounded-lg">
+                    <!-- Buttons injected by JS -->
+                </div>
+            </div>
+        </div>
+    </header>
+
+    <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-8">
+        
+        <!-- KPI Grid -->
+        <div id="kpi-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+            <!-- KPIs injected by JS -->
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            
+            <!-- Main Content: Subject Details -->
+            <div class="lg:col-span-2 space-y-6">
+                <div class="flex flex-col sm:flex-row sm:items-center justify-between mb-4 gap-4">
+                    <h2 class="text-xl font-bold text-gray-800">Desempenho por Disciplina</h2>
+                    
+                    <div class="flex flex-col sm:flex-row gap-4">
+                        <!-- View Mode Toggle -->
+                        <div class="bg-white rounded-lg shadow-sm border border-gray-200 p-1 flex">
+                            <button id="btn-mode-standard" class="px-3 py-1 text-xs font-medium rounded transition-colors" onclick="setAppState('viewMode', 'standard')">Padrão</button>
+                            <button id="btn-mode-differential" class="px-3 py-1 text-xs font-medium rounded transition-colors" onclick="setAppState('viewMode', 'differential')">Diferencial (23/24)</button>
+                        </div>
+
+                        <div class="flex items-center gap-2 text-sm text-gray-500 bg-white px-3 py-1.5 rounded-lg border border-gray-200">
+                            <span id="icon-filter"></span>
+                            <select id="sort-select" class="bg-transparent border-none font-semibold text-blue-600 focus:ring-0 cursor-pointer text-xs sm:text-sm outline-none" onchange="setAppState('selectedMetric', this.value)">
+                                <option value="success">Ordenar por Sucesso</option>
+                                <option value="quality">Ordenar por Qualidade</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
+                    <div id="subject-list" class="p-6 space-y-8">
+                        <!-- Subjects injected by JS -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Sidebar: Highlights & Charts -->
+            <div class="space-y-6">
+                
+                <!-- Top Performers -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <h3 class="font-bold text-gray-800 mb-4 flex items-center gap-2">
+                        <span id="icon-award-sidebar" class="text-amber-500"></span>
+                        Top Disciplinas
+                    </h3>
+                    <div id="top-performers-list" class="space-y-4">
+                        <!-- List injected by JS -->
+                    </div>
+                </div>
+
+                <!-- Comparison Chart -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                    <h3 class="font-bold text-gray-800 mb-6">Comparativo de Qualidade</h3>
+                    <div id="comparison-chart-container" class="h-64">
+                        <!-- Chart injected by JS -->
+                    </div>
+                    <p class="text-center text-xs text-gray-400 mt-4">Top 5 Disciplinas por Qualidade (Níveis 4 e 5)</p>
+                </div>
+
+                <!-- Negative Highlights -->
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 border-l-4 border-l-red-400">
+                    <h3 class="font-bold text-gray-800 mb-2">Atenção Necessária</h3>
+                    <p class="text-sm text-gray-600 mb-4">Disciplinas com maior taxa de níveis insuficientes (Nível 1 e 2).</p>
+                    <div id="attention-list" class="space-y-3">
+                        <!-- List injected by JS -->
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <script>
+        // --- DATA ---
+        const DATA = {
+            "5º Ano": {
+                periods: ["1º Período", "2º Período", "3º Período"],
+                stats: {
+                    "Português": { levels: { 1: 0.64, 2: 10.90, 3: 50.00, 4: 30.13, 5: 8.33 }, success: 88.46, quality: 38.46, diff: { 1: 0.64, 2: 2.92, 3: -6.44, 4: -0.55, 5: 5.43 } },
+                    "Inglês": { levels: { 1: 0.64, 2: 9.62, 3: 46.15, 4: 32.69, 5: 10.90 }, success: 89.74, quality: 43.59, diff: { 1: 0.64, 2: -4.50, 3: 6.28, 4: -4.73, 5: 2.31 } },
+                    "HGP": { levels: { 1: 1.29, 2: 23.87, 3: 32.90, 4: 30.97, 5: 10.97 }, success: 74.84, quality: 41.94, diff: { 1: 1.29, 2: 9.76, 3: -8.81, 4: 1.52, 5: -3.76 } },
+                    "Ciências Naturais": { levels: { 1: 0.64, 2: 5.13, 3: 40.38, 4: 38.46, 5: 15.38 }, success: 94.23, quality: 53.85, diff: { 1: 0.64, 2: -1.01, 3: 10.32, 4: -17.37, 5: 7.41 } },
+                    "Matemática": { levels: { 1: 0.64, 2: 20.51, 3: 48.08, 4: 24.36, 5: 6.41 }, success: 78.85, quality: 30.77, diff: { 1: 0.64, 2: 2.11, 3: 8.81, 4: -11.84, 5: 0.28 } },
+                    "Educação Visual": { levels: { 1: 0.64, 2: 10.26, 3: 55.77, 4: 21.79, 5: 11.54 }, success: 89.10, quality: 33.33, diff: { 1: 0.03, 2: 5.35, 3: 14.05, 4: -17.47, 5: -1.96 } },
+                    "Educação Tecnológica": { levels: { 1: 0.64, 2: 11.54, 3: 60.90, 4: 21.15, 5: 5.77 }, success: 87.82, quality: 26.92, diff: { 1: 0.03, 2: 1.72, 3: 21.02, 4: -16.88, 5: -5.89 } },
+                    "EM": { levels: { 1: 0.64, 2: 1.28, 3: 21.79, 4: 37.82, 5: 38.46 }, success: 98.08, quality: 76.28, diff: { 1: 0.03, 2: 0.05, 3: -27.28, 4: 10.83, 5: 16.38 } },
+                    "EF": { levels: { 1: 1.28, 2: 3.85, 3: 48.72, 4: 40.38, 5: 5.77 }, success: 94.87, quality: 46.15, diff: { 1: 1.28, 2: -0.45, 3: 10.68, 4: -2.56, 5: -8.95 } },
+                    "CD": { levels: { 1: 0.00, 2: 1.34, 3: 33.56, 4: 33.56, 5: 31.54 }, success: 98.66, quality: 65.10, diff: { 1: 0.00, 2: -1.14, 3: 5.61, 4: -0.60, 5: -3.86 } },
+                    "TIC": { levels: { 1: 0.00, 2: 0.00, 3: 41.72, 4: 20.53, 5: 37.75 }, success: 100.00, quality: 58.28, diff: { 1: 0.00, 2: 0.00, 3: -0.61, 4: 1.57, 5: -0.97 } },
+                    "Ed Art": { levels: { 1: 0.65, 2: 7.74, 3: 46.45, 4: 29.68, 5: 15.48 }, success: 91.61, quality: 45.16, diff: { 1: 0.03, 2: 4.06, 3: 5.96, 4: -12.04, 5: 1.99 } },
+                    "EMR": { levels: { 1: 0.00, 2: 0.00, 3: 71.43, 4: 28.57, 5: 0.00 }, success: 100.00, quality: 28.57, diff: { 1: 7.14, 2: 0.00, 3: 35.71, 4: -14.29, 5: -14.29 } }
+                }
+            },
+            "6º Ano": {
+                periods: ["1º Período", "2º Período", "3º Período"],
+                stats: {
+                    "Português": { levels: { 1: 0.00, 2: 5.75, 3: 56.90, 4: 32.76, 5: 4.60 }, success: 94.25, quality: 37.36, diff: { 1: 0.00, 2: -5.03, 3: 9.59, 4: 2.22, 5: -6.78 } },
+                    "Inglês": { levels: { 1: 0.00, 2: 12.64, 3: 51.72, 4: 26.44, 5: 9.20 }, success: 87.36, quality: 35.63, diff: { 1: 0.00, 2: 2.46, 3: 6.81, 4: -5.90, 5: -3.38 } },
+                    "HGP": { levels: { 1: 0.00, 2: 7.47, 3: 39.08, 4: 27.01, 5: 26.44 }, success: 92.53, quality: 53.45, diff: { 1: 0.00, 2: -4.50, 3: 5.55, 4: -9.52, 5: 8.47 } },
+                    "Ciências Naturais": { levels: { 1: 1.72, 2: 0.00, 3: 44.83, 4: 49.43, 5: 4.02 }, success: 98.28, quality: 53.45, diff: { 1: 1.72, 2: -11.98, 3: 4.11, 4: 8.11, 5: -1.97 } },
+                    "Matemática": { levels: { 1: 0.00, 2: 16.67, 3: 47.13, 4: 26.44, 5: 9.77 }, success: 83.33, quality: 36.21, diff: { 1: 0.00, 2: -16.27, 3: 9.40, 4: 6.08, 5: 0.79 } },
+                    "Educação Visual": { levels: { 1: 0.00, 2: 2.87, 3: 40.23, 4: 47.70, 5: 9.20 }, success: 97.13, quality: 56.90, diff: { 1: 0.00, 2: -9.10, 3: 31.25, 4: 22.55, 5: -44.69 } },
+                    "Educação Tecnológica": { levels: { 1: 0.00, 2: 3.45, 3: 43.68, 4: 43.10, 5: 9.77 }, success: 96.55, quality: 52.87, diff: { 1: 0.00, 2: -5.53, 3: 12.54, 4: 34.72, 5: -41.73 } },
+                    "EM": { levels: { 1: 0.00, 2: 5.75, 3: 31.61, 4: 33.33, 5: 29.31 }, success: 94.25, quality: 62.64, diff: { 1: 0.00, 2: 0.96, 3: 12.45, 4: -6.79, 5: -6.62 } },
+                    "EF": { levels: { 1: 0.00, 2: 1.72, 3: 41.38, 4: 49.43, 5: 7.47 }, success: 98.28, quality: 56.90, diff: { 1: -0.60, 2: 0.53, 3: 6.65, 4: -4.47, 5: -2.11 } },
+                    "CD": { levels: { 1: 0.00, 2: 0.00, 3: 33.53, 4: 30.59, 5: 35.88 }, success: 100.00, quality: 66.47, diff: { 1: 0.00, 2: 0.57, 3: -1.16, 4: 0.97, 5: -4.62 } },
+                    "TIC": { levels: { 1: 0.00, 2: 0.00, 3: 54.29, 4: 10.86, 5: 34.86 }, success: 100.00, quality: 45.71, diff: { 1: 0.00, 2: -2.91, 3: 17.56, 4: -8.17, 5: -6.58 } },
+                    "Ed Art": { levels: { 1: 3.45, 2: 0.00, 3: 45.40, 4: 8.62, 5: 42.53 }, success: 96.55, quality: 51.15, diff: { 1: 0.00, 2: 0.32, 3: -20.63, 4: 9.64, 5: 10.67 } },
+                    "EMR": { levels: { 1: 0.00, 2: 0.00, 3: 50.00, 4: 25.00, 5: 25.00 }, success: 100.00, quality: 50.00, diff: { 1: 3.57, 2: 0.00, 3: 21.43, 4: -28.57, 5: 10.71 } }
+                }
+            },
+            "2º Ciclo": {
+                periods: ["1º Período"],
+                stats: {
+                    "Português": { levels: { 1: 0.32, 2: 8.32, 3: 53.45, 4: 31.44, 5: 6.47 }, success: 91.36, quality: 37.91, diff: { 1: 0.32, 2: -1.05, 3: 1.57, 4: 0.84, 5: -1.68 } },
+                    "Inglês": { levels: { 1: 0.32, 2: 11.13, 3: 48.94, 4: 29.56, 5: 10.05 }, success: 88.55, quality: 39.61, diff: { 1: 0.32, 2: -1.02, 3: 6.55, 4: -0.54, 5: -5.31 } },
+                    "HGP": { levels: { 1: 0.65, 2: 15.67, 3: 35.99, 4: 28.99, 5: 18.70 }, success: 83.68, quality: 47.69, diff: { 1: 0.65, 2: 2.63, 3: -1.65, 4: 2.36, 5: -4.00 } },
+                    "Ciências Naturais": { levels: { 1: 0.32, 2: 3.43, 3: 42.61, 4: 43.94, 5: 9.70 }, success: 96.25, quality: 53.64, diff: { 1: 0.32, 2: -5.63, 3: 6.92, 4: 2.72, 5: -4.33 } },
+                    "Matemática": { levels: { 1: 0.32, 2: 18.59, 3: 47.60, 4: 25.40, 5: 8.09 }, success: 81.09, quality: 33.49, diff: { 1: 0.32, 2: -7.08, 3: 9.11, 4: -2.88, 5: 0.53 } },
+                    "Educação Visual": { levels: { 1: 0.32, 2: 6.56, 3: 48.00, 4: 34.75, 5: 10.37 }, success: 93.12, quality: 45.12, diff: { 1: 0.01, 2: -1.88, 3: 0.19, 4: -0.87, 5: 2.54 } },
+                    "Educação Tecnológica": { levels: { 1: 0.32, 2: 7.49, 3: 52.29, 4: 32.13, 5: 7.77 }, success: 92.19, quality: 39.90, diff: { 1: 0.01, 2: -1.91, 3: 6.60, 4: -2.25, 5: -2.46 } },
+                    "EM": { levels: { 1: 0.32, 2: 3.51, 3: 26.70, 4: 35.58, 5: 33.89 }, success: 96.17, quality: 69.47, diff: { 1: 0.01, 2: 0.51, 3: -15.80, 4: 15.28, 5: 2.02 } },
+                    "EF": { levels: { 1: 0.54, 2: 2.79, 3: 45.05, 4: 44.90, 5: 6.62 }, success: 96.67, quality: 51.52, diff: { 1: 0.34, 2: 0.04, 3: 8.66, 4: -5.53, 5: -3.51 } },
+                    "CD": { levels: { 1: 0.00, 2: 0.67, 3: 33.54, 4: 32.08, 5: 33.71 }, success: 99.33, quality: 65.79, diff: { 1: 0.00, 2: 1.15, 3: 0.49, 4: -6.06, 5: 6.72 } },
+                    "TIC": { levels: { 1: 0.00, 2: 0.00, 3: 48.00, 4: 15.69, 5: 36.30 }, success: 100.00, quality: 52.00, diff: { 1: -4.91, 2: -0.31, 3: 6.43, 4: -4.53, 5: 5.31 } },
+                    "Ed Art": { levels: { 1: 2.05, 2: 3.87, 3: 45.93, 4: 19.15, 5: 29.00 }, success: 94.08, quality: 48.15, diff: { 1: -4.91, 2: -0.31, 3: 6.43, 4: -4.53, 5: 5.31 } },
+                    "EMR": { levels: { 1: 0.00, 2: 0.00, 3: 60.71, 4: 26.79, 5: 12.50 }, success: 100.00, quality: 39.29, diff: { 1: -5.03, 2: 3.87, 3: 16.08, 4: -20.88, 5: 5.96 } }
+                }
+            }
+        };
+
+        const COLORS = {
+            primary: "#2563EB", secondary: "#0D9488", accent: "#F59E0B", danger: "#EF4444", success: "#10B981",
+            bg: "#F3F4F6", card: "#FFFFFF", text: "#1F2937",
+            levels: { 1: "#EF4444", 2: "#F97316", 3: "#EAB308", 4: "#84CC16", 5: "#22C55E" }
+        };
+
+        // --- ICONS (Inline SVG) ---
+        const ICONS = {
+            TrendingUp: `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 6 13.5 15.5 8.5 10.5 1 18"/><polyline points="17 6 23 6 23 12"/></svg>`,
+            Award: `<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>`,
+            BookOpen: `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/></svg>`,
+            Filter: `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"/></svg>`,
+            ArrowUp: `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="19" x2="12" y2="5"/><polyline points="5 12 12 5 19 12"/></svg>`,
+            ArrowDown: `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="12" y1="5" x2="12" y2="19"/><polyline points="19 12 12 19 5 12"/></svg>`,
+            ArrowRightLeft: `<svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m16 21 5-5-5-5"/><path d="M21 16H3"/><path d="m8 3-5 5 5 5"/><path d="M3 8h18"/></svg>`,
+            AwardSmall: `<svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></svg>`
+        };
+
+        // --- STATE ---
+        let appState = {
+            selectedGrade: "2º Ciclo",
+            selectedMetric: "success",
+            viewMode: "standard"
+        };
+
+        // --- ACTIONS ---
+        function setAppState(key, value) {
+            appState[key] = value;
+            render();
+        }
+
+        // --- RENDER FUNCTIONS ---
+        
+        function renderGradeSelector() {
+            const container = document.getElementById('grade-selector');
+            const grades = Object.keys(DATA);
+            container.innerHTML = grades.map(grade => {
+                const isActive = appState.selectedGrade === grade;
+                const classes = isActive 
+                    ? 'bg-white text-blue-600 shadow-sm' 
+                    : 'text-gray-500 hover:text-gray-700';
+                return `<button onclick="setAppState('selectedGrade', '${grade}')" class="px-3 sm:px-4 py-1.5 rounded-md text-xs sm:text-sm font-medium transition-all ${classes}">${grade}</button>`;
+            }).join('');
+        }
+
+        function renderKPIs(currentData, avgSuccess, avgQuality) {
+            const subjects = Object.keys(currentData.stats);
+            const container = document.getElementById('kpi-grid');
+            
+            // KPI 1: Success
+            const kpi1 = `
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex items-center justify-between relative overflow-hidden">
+                    <div class="z-10">
+                        <p class="text-sm font-medium text-gray-500 mb-1">Média Global de Sucesso</p>
+                        <h2 class="text-3xl font-bold text-gray-800">${avgSuccess}%</h2>
+                        <p class="text-xs text-gray-400 mt-1">Alunos com Nível >= 3</p>
+                        <div class="flex items-center text-xs mt-2 font-medium text-green-500">
+                             ${ICONS.ArrowUp} <span>1.2% vs Período Anterior</span>
+                        </div>
+                    </div>
+                    <div class="p-4 rounded-full bg-opacity-10 bg-teal-500 text-teal-500">${ICONS.TrendingUp}</div>
+                    <div class="absolute -right-6 -bottom-6 w-24 h-24 rounded-full opacity-5 bg-teal-500"></div>
+                </div>
+            `;
+
+            // KPI 2: Quality
+            const kpi2 = `
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 flex items-center justify-between relative overflow-hidden">
+                    <div class="z-10">
+                        <p class="text-sm font-medium text-gray-500 mb-1">Qualidade do Sucesso</p>
+                        <h2 class="text-3xl font-bold text-gray-800">${avgQuality}%</h2>
+                        <p class="text-xs text-gray-400 mt-1">Alunos com Nível 4 ou 5</p>
+                        <div class="flex items-center text-xs mt-2 font-medium text-red-500">
+                             ${ICONS.ArrowDown} <span>0.5% vs Período Anterior</span>
+                        </div>
+                    </div>
+                    <div class="p-4 rounded-full bg-opacity-10 bg-blue-500 text-blue-500">${ICONS.Award}</div>
+                    <div class="absolute -right-6 -bottom-6 w-24 h-24 rounded-full opacity-5 bg-blue-500"></div>
+                </div>
+            `;
+
+            // Aggregate Chart Card
+            let aggregateBars = '';
+            [1,2,3,4,5].forEach(lvl => {
+                const avgLvl = (subjects.reduce((acc, sub) => acc + currentData.stats[sub].levels[lvl], 0) / subjects.length).toFixed(1);
+                aggregateBars += `<div style="width: ${avgLvl}%; background-color: ${COLORS.levels[lvl]}" class="h-full flex items-center justify-center text-[10px] font-bold text-white transition-all duration-700" title="Média Nível ${lvl}: ${avgLvl}%">${avgLvl > 5 ? avgLvl + '%' : ''}</div>`;
+            });
+            
+            const legend = Object.entries(COLORS.levels).map(([lvl, color]) => `
+                <div class="flex items-center gap-1"><div class="w-2 h-2 rounded-full" style="background-color: ${color}"></div><span>N${lvl}</span></div>
+            `).join('');
+
+            const kpi3 = `
+                <div class="bg-white rounded-xl shadow-sm border border-gray-100 p-6 col-span-1 lg:col-span-2 flex flex-col justify-center">
+                    <div class="flex justify-between items-end mb-4">
+                        <div>
+                            <h3 class="font-semibold text-gray-700">Resumo de Níveis (${appState.selectedGrade})</h3>
+                            <p class="text-sm text-gray-500">Média ponderada da distribuição de níveis</p>
+                        </div>
+                        <div class="flex gap-2 text-xs">${legend}</div>
+                    </div>
+                    <div class="h-6 w-full rounded-full overflow-hidden flex shadow-inner opacity-90">${aggregateBars}</div>
+                </div>
+            `;
+
+            container.innerHTML = kpi1 + kpi2 + kpi3;
+        }
+
+        // --- Chart Helpers ---
+        function generateStackedBar(levels) {
+            let html = '<div class="w-full h-8 flex rounded-lg overflow-hidden my-2 shadow-sm">';
+            [1,2,3,4,5].forEach(level => {
+                const width = levels[level] || 0;
+                if (width === 0) return;
+                html += `
+                    <div style="width: ${width}%; background-color: ${COLORS.levels[level]}" class="h-full relative group transition-all hover:brightness-110" title="Nível ${level}: ${width}%">
+                        ${width > 4 ? `<span class="absolute inset-0 flex items-center justify-center text-white text-[10px] font-bold shadow-black drop-shadow-md">${level}</span>` : ''}
+                    </div>
+                `;
+            });
+            html += '</div>';
+            return html;
+        }
+
+        function generateDivergingBar(diffData) {
+            if (!diffData) return '<div class="text-gray-400 text-sm italic">Dados comparativos não disponíveis</div>';
+            
+            const levels = [1, 2, 3, 4, 5];
+            const maxVal = Math.max(...levels.map(l => Math.abs(diffData[l] || 0)), 10);
+            
+            let html = `
+                <div class="w-full mt-2">
+                    <div class="flex justify-between text-[10px] text-gray-400 mb-1 px-1">
+                        <span>Diminuição (%)</span>
+                        <span>Aumento (%)</span>
+                    </div>
+                    <div class="space-y-2">
+            `;
+            
+            levels.forEach(level => {
+                const val = diffData[level] || 0;
+                const isPositive = val > 0;
+                const width = (Math.abs(val) / maxVal) * 50; 
+                
+                let barColor;
+                if (level <= 2) {
+                     barColor = isPositive ? COLORS.danger : COLORS.success;
+                } else {
+                     barColor = isPositive ? COLORS.success : COLORS.danger;
+                }
+
+                html += `
+                    <div class="flex items-center h-5 text-xs">
+                        <span class="w-6 text-gray-500 font-bold">N${level}</span>
+                        <div class="flex-1 flex items-center relative h-full bg-gray-50 rounded-sm">
+                            <div class="absolute left-1/2 top-0 bottom-0 w-px bg-gray-300"></div>
+                            <div class="h-3 rounded-sm transition-all duration-500" style="width: ${width}%; background-color: ${barColor}; margin-left: ${isPositive ? '50%' : `calc(50% - ${width}%)`}; opacity: 0.8;"></div>
+                            <span class="absolute text-[9px] font-medium text-gray-600" style="${isPositive ? `left: calc(50% + ${width}% + 4px)` : `right: calc(50% + ${width}% + 4px)`}">${val > 0 ? '+' : ''}${val}%</span>
+                        </div>
+                    </div>
+                `;
+            });
+
+            html += `</div></div>`;
+            return html;
+        }
+
+        function generateSimpleBarChart(data, labels, color) {
+            const maxVal = Math.max(...data, 100);
+            const height = 150;
+            const barWidth = 80 / data.length;
+            
+            let svgContent = '';
+            data.forEach((val, i) => {
+                const barHeight = (val / maxVal) * height;
+                const x = i * (100 / data.length) + (100 / data.length - barWidth) / 2;
+                const cx = i * (100 / data.length) + (100 / data.length) / 2;
+                
+                svgContent += `
+                    <g>
+                        <rect x="${x}" y="${height - barHeight}" width="${barWidth}" height="${barHeight}" fill="${color}" rx="2" class="transition-all duration-500 hover:opacity-80"/>
+                        <text x="${cx}" y="${height - barHeight - 5}" text-anchor="middle" class="text-[8px] fill-gray-600 font-bold">${val.toFixed(1)}%</text>
+                        <text x="${cx}" y="${height + 15}" text-anchor="middle" class="text-[8px] fill-gray-500">${labels[i]}</text>
+                    </g>
+                `;
+            });
+
+            return `<svg viewBox="0 0 100 ${height + 20}" class="w-full h-full overflow-visible">${svgContent}</svg>`;
+        }
+
+        function renderSubjects(currentData, sortedSubjects) {
+            const container = document.getElementById('subject-list');
+            
+            container.innerHTML = sortedSubjects.map(subject => {
+                const data = currentData.stats[subject];
+                
+                let content;
+                if (appState.viewMode === 'standard') {
+                    content = `
+                        ${generateStackedBar(data.levels)}
+                        <div class="flex justify-between text-xs text-gray-400 mt-1 px-1">
+                            <span>Distribuição Atual (24/25)</span>
+                        </div>
+                    `;
+                } else {
+                    content = `
+                        <div class="mt-4 bg-gray-50 p-3 rounded-lg border border-gray-100">
+                            <div class="flex items-center gap-2 mb-2">
+                                <span class="text-gray-400">${ICONS.ArrowRightLeft}</span>
+                                <span class="text-xs font-bold text-gray-500 uppercase tracking-wider">Diferencial vs 23/24 (p.p.)</span>
+                            </div>
+                            ${generateDivergingBar(data.diff)}
+                        </div>
+                    `;
+                }
+
+                return `
+                    <div class="mb-6 last:mb-0 border-b border-gray-50 pb-6 last:border-0 last:pb-0">
+                        <div class="flex justify-between items-center mb-2">
+                            <h3 class="font-semibold text-gray-800 flex items-center gap-2">
+                                <span class="text-blue-500">${ICONS.BookOpen}</span>
+                                ${subject}
+                            </h3>
+                            <div class="flex gap-4 text-sm">
+                                <span class="text-gray-600">Sucesso: <strong class="text-green-600">${data.success.toFixed(1)}%</strong></span>
+                                <span class="text-gray-600">Qualidade: <strong class="text-blue-600">${data.quality.toFixed(1)}%</strong></span>
+                            </div>
+                        </div>
+                        ${content}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderSidebar(currentData, sortedSubjects) {
+            // Top Performers
+            const topContainer = document.getElementById('top-performers-list');
+            topContainer.innerHTML = sortedSubjects.slice(0, 3).map((sub, idx) => `
+                <div class="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                    <div class="flex items-center gap-3">
+                        <div class="w-6 h-6 rounded-full bg-white border border-gray-200 flex items-center justify-center text-xs font-bold text-gray-500">${idx + 1}</div>
+                        <span class="font-medium text-gray-700">${sub}</span>
+                    </div>
+                    <span class="font-bold text-blue-600">${currentData.stats[sub][appState.selectedMetric].toFixed(1)}%</span>
+                </div>
+            `).join('');
+
+            // Chart
+            const chartContainer = document.getElementById('comparison-chart-container');
+            const top5 = sortedSubjects.slice(0, 5);
+            chartContainer.innerHTML = generateSimpleBarChart(
+                top5.map(s => currentData.stats[s].quality),
+                top5.map(s => s.substring(0, 3).toUpperCase()),
+                COLORS.secondary
+            );
+
+            // Attention List
+            const attentionContainer = document.getElementById('attention-list');
+            const worstSubjects = [...sortedSubjects].sort((a,b) => (currentData.stats[b].levels[1] + currentData.stats[b].levels[2]) - (currentData.stats[a].levels[1] + currentData.stats[a].levels[2])).slice(0,3);
+            attentionContainer.innerHTML = worstSubjects.map(sub => {
+                const failureRate = (currentData.stats[sub].levels[1] + currentData.stats[sub].levels[2]).toFixed(1);
+                return `
+                    <div class="flex justify-between items-center text-sm">
+                        <span class="text-gray-700">${sub}</span>
+                        <span class="font-bold text-red-500">${failureRate}%</span>
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function updateUIControls() {
+            // Mode buttons
+            const stdBtn = document.getElementById('btn-mode-standard');
+            const diffBtn = document.getElementById('btn-mode-differential');
+            
+            if (appState.viewMode === 'standard') {
+                stdBtn.className = 'px-3 py-1 text-xs font-medium rounded transition-colors bg-blue-50 text-blue-600';
+                diffBtn.className = 'px-3 py-1 text-xs font-medium rounded transition-colors text-gray-500 hover:text-gray-800';
+            } else {
+                stdBtn.className = 'px-3 py-1 text-xs font-medium rounded transition-colors text-gray-500 hover:text-gray-800';
+                diffBtn.className = 'px-3 py-1 text-xs font-medium rounded transition-colors bg-blue-50 text-blue-600';
+            }
+        }
+
+        // --- MAIN RENDER LOOP ---
+        function render() {
+            const currentData = DATA[appState.selectedGrade];
+            const subjects = Object.keys(currentData.stats);
+            const avgSuccess = (subjects.reduce((acc, sub) => acc + currentData.stats[sub].success, 0) / subjects.length).toFixed(1);
+            const avgQuality = (subjects.reduce((acc, sub) => acc + currentData.stats[sub].quality, 0) / subjects.length).toFixed(1);
+            
+            const sortedSubjects = [...subjects].sort((a, b) => currentData.stats[b][appState.selectedMetric] - currentData.stats[a][appState.selectedMetric]);
+
+            renderGradeSelector();
+            renderKPIs(currentData, avgSuccess, avgQuality);
+            renderSubjects(currentData, sortedSubjects);
+            renderSidebar(currentData, sortedSubjects);
+            updateUIControls();
+        }
+
+        // --- INIT ---
+        document.getElementById('icon-filter').innerHTML = ICONS.Filter;
+        document.getElementById('icon-award-sidebar').innerHTML = ICONS.AwardSmall;
+        
+        render();
+
+    </script>
+</body>
+</html>
